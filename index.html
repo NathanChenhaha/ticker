@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_blank">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>最新消息</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #ffffff; overflow: hidden; }
+  @media (prefers-color-scheme: dark) { html, body { background: #191919; } }
+  body { overflow: hidden; font-family: "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif; padding: 4px; }
+  a.bar {
+    display: flex; align-items: center; gap: 12px; height: 52px; padding: 0 16px;
+    background: #fff7ed; border: 2px solid #fdba74; border-radius: 999px;
+    color: #431407; text-decoration: none; overflow: hidden;
+  }
+  a.bar:hover { background: #ffedd5; }
+  .label {
+    flex: none; font-weight: 800; font-size: 15px; color: #fff; background: #f97316;
+    padding: 5px 12px; border-radius: 999px;
+  }
+  .viewport { position: relative; flex: 1; height: 100%; overflow: hidden; }
+  .item {
+    position: absolute; inset: 0; display: flex; align-items: center; gap: 8px;
+    font-size: 16px; white-space: nowrap; transition: transform .5s ease, opacity .5s ease;
+  }
+  .item.in   { transform: translateY(0);    opacity: 1; }
+  .item.down { transform: translateY(100%); opacity: 0; }
+  .item.up   { transform: translateY(-100%); opacity: 0; }
+  .title { overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+  .tag { flex: none; font-size: 12px; padding: 2px 8px; border-radius: 6px; background: #fed7aa; color: #9a3412; }
+  .until { flex: none; font-size: 13px; color: #9a3412; opacity: .7; }
+  .more { flex: none; font-size: 14px; color: #c2410c; font-weight: 700; }
+  @media (max-width: 480px) { .until, .more { display: none; } .item { font-size: 15px; } }
+</style>
+</head>
+<body>
+  <a class="bar" id="bar" href="#">
+    <span class="label">📢 最新消息</span>
+    <div class="viewport" id="vp"><div class="item in"><span class="title">載入中…</span></div></div>
+    <span class="more">看全部 ›</span>
+  </a>
+
+<script>
+  const NEWS_URL = "https://www.notion.so/41a2dfee609581fabb02cb258db9f8e1";
+  const API = "https://script.google.com/macros/s/AKfycbx3aOZR4hNGWYoxNswA_JaSoQTq4S6nRQVVDPy_Ze05wUfZkpZI3Y_HoBzoHwAuzqPL/exec?view=news-json";
+  const SECONDS  = 4;
+  document.getElementById('bar').href = NEWS_URL;
+
+  const vp = document.getElementById('vp');
+  let items = [], idx = 0, paused = false;
+
+  function el(tag, cls, text) { const e = document.createElement(tag); e.className = cls; e.textContent = text; return e; }
+
+  function makeItem(n) {
+    const d = document.createElement('div');
+    d.className = 'item down';
+    if (n.tag) d.appendChild(el('span', 'tag', n.tag));
+    d.appendChild(el('span', 'title', (n.pin ? '📌 ' : '') + n.title));
+    if (n.until) {
+      const p = n.until.split('-');
+      d.appendChild(el('span', 'until', '至 ' + (+p[1]) + '/' + (+p[2])));
+    }
+    return d;
+  }
+
+  function show(list) {
+    vp.innerHTML = '';
+    if (!list.length) { vp.innerHTML = '<div class="item in"><span class="title">目前沒有新消息</span></div>'; return; }
+    items = list.map(makeItem);
+    items.forEach(d => vp.appendChild(d));
+    items[0].className = 'item in';
+    if (items.length > 1) setInterval(next, SECONDS * 1000);
+  }
+
+  function next() {
+    if (paused) return;
+    const cur = items[idx];
+    idx = (idx + 1) % items.length;
+    const nxt = items[idx];
+    nxt.style.transition = 'none'; nxt.className = 'item down';
+    void nxt.offsetWidth; nxt.style.transition = '';
+    cur.className = 'item up';
+    nxt.className = 'item in';
+  }
+
+  vp.addEventListener('mouseenter', () => paused = true);
+  vp.addEventListener('mouseleave', () => paused = false);
+
+  fetch(API)
+    .then(r => r.json())
+    .then(d => { if (d.ok) show(d.news); else throw new Error(d.error); })
+    .catch(err => { vp.innerHTML = ''; vp.appendChild(el('div', 'item in', '⚠️ 消息載入失敗，請稍後再試')); console.error(err); });
+</script>
+</body>
+</html>
