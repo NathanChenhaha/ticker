@@ -99,7 +99,7 @@
   function makeItem(n) {
     const d = document.createElement('div'); d.className = 'item down';
     if (n.tag) { const t = el('span', 'tag', n.tag); t.style.setProperty('--mk', markerFor(n.tag)); d.appendChild(t); }
-    d.appendChild(el('span', 'title', (n.pin ? '📌 ' : '') + n.title));
+    d.appendChild(el('span', 'title', n.title));
     if (n.until) { const p = n.until.split('-'); d.appendChild(el('span', 'until', '～' + (+p[1]) + '/' + (+p[2]))); }
     return d;
   }
