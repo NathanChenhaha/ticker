@@ -1,92 +1,127 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-Hant">
 <head>
-<base target="_blank">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>最新消息</title>
+<base target="_blank">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/roughjs@4.6.6/bundled/rough.js"></script>
 <style>
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: #ffffff; overflow: hidden; }
-  @media (prefers-color-scheme: dark) { html, body { background: #191919; } }
-  body { overflow: hidden; font-family: "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif; padding: 4px; }
+  :root { --page: #ffffff; --paper: #fffdf5; --dot: #e8e1cf; --ink: #4a3f35; --ink-soft: #8a7d6e; }
+  @media (prefers-color-scheme: dark) { :root { --page: #191919; } }
+  html, body { margin: 0; height: 100%; background: var(--page); overflow: hidden; }
+  body { font-family: "LXGW WenKai TC", "PingFang TC", "Microsoft JhengHei", sans-serif; color: var(--ink); padding: 4px; }
+
   a.bar {
-    display: flex; align-items: center; gap: 12px; height: 52px; padding: 0 16px;
-    background: #fff7ed; border: 2px solid #fdba74; border-radius: 999px;
-    color: #431407; text-decoration: none; overflow: hidden;
+    position: relative; display: flex; align-items: center; gap: 14px; height: 56px; padding: 0 18px 0 12px;
+    border-radius: 12px; color: var(--ink); text-decoration: none; overflow: hidden;
+    background-color: var(--paper);
+    background-image: radial-gradient(var(--dot) 1px, transparent 1.2px); background-size: 16px 16px;
   }
-  a.bar:hover { background: #ffedd5; }
-  .label {
-    flex: none; font-weight: 800; font-size: 15px; color: #fff; background: #f97316;
-    padding: 5px 12px; border-radius: 999px;
-  }
+  a.bar:hover { background-color: #fff8e1; }
+  svg.deco { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+
+  .label { position: relative; flex: none; font-weight: 700; font-size: 17px; padding: 6px 14px; z-index: 1; }
+  .label { display: flex; align-items: center; gap: 4px; }
+  .label #labelBg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; z-index: -1; }
+  .mega { width: 30px; height: 24px; flex: none; overflow: visible; }
+
   .viewport { position: relative; flex: 1; height: 100%; overflow: hidden; }
-  .item {
-    position: absolute; inset: 0; display: flex; align-items: center; gap: 8px;
-    font-size: 16px; white-space: nowrap; transition: transform .5s ease, opacity .5s ease;
-  }
-  .item.in   { transform: translateY(0);    opacity: 1; }
-  .item.down { transform: translateY(100%); opacity: 0; }
+  .item { position: absolute; inset: 0; display: flex; align-items: center; gap: 10px; font-size: 18px; white-space: nowrap;
+    transition: transform .5s ease, opacity .5s ease; }
+  .item.in   { transform: translateY(0);     opacity: 1; }
+  .item.down { transform: translateY(100%);  opacity: 0; }
   .item.up   { transform: translateY(-100%); opacity: 0; }
-  .title { overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
-  .tag { flex: none; font-size: 12px; padding: 2px 8px; border-radius: 6px; background: #fed7aa; color: #9a3412; }
-  .until { flex: none; font-size: 13px; color: #9a3412; opacity: .7; }
-  .more { flex: none; font-size: 14px; color: #c2410c; font-weight: 700; }
-  @media (max-width: 480px) { .until, .more { display: none; } .item { font-size: 15px; } }
+  .title { overflow: hidden; text-overflow: ellipsis; font-weight: 700; }
+  .tag { flex: none; font-size: 15px; padding: 0 4px;
+    background: linear-gradient(transparent 30%, var(--mk) 30%, var(--mk) 88%, transparent 88%); }
+  .until { flex: none; font-size: 15px; color: var(--ink-soft); }
+
+  .more { position: relative; flex: none; font-size: 16px; font-weight: 700; padding-bottom: 4px; }
+  .more svg { position: absolute; left: 0; bottom: -2px; width: 100%; height: 10px; overflow: visible; }
+
+  @media (max-width: 520px) {
+    .until, .more { display: none; }
+    .item { font-size: 16px; } .label { font-size: 15px; padding: 5px 10px; }
+  }
 </style>
 </head>
 <body>
   <a class="bar" id="bar" href="#">
-    <span class="label">📢 最新消息</span>
-    <div class="viewport" id="vp"><div class="item in"><span class="title">載入中…</span></div></div>
-    <span class="more">看全部 ›</span>
+    <svg class="deco" id="frame"></svg>
+    <span class="label" id="label"><svg id="labelBg"></svg><svg class="mega" id="mega" viewBox="0 0 30 24"></svg>最新消息</span>
+    <div class="viewport" id="vp"><div class="item in"><span class="title">翻開消息中…</span></div></div>
+    <span class="more" id="more">看全部 ›<svg id="moreLine"></svg></span>
   </a>
 
 <script>
   const NEWS_URL = "https://www.notion.so/41a2dfee609581fabb02cb258db9f8e1";
   const API = "https://script.google.com/macros/s/AKfycbx3aOZR4hNGWYoxNswA_JaSoQTq4S6nRQVVDPy_Ze05wUfZkpZI3Y_HoBzoHwAuzqPL/exec?view=news-json";
-  const SECONDS  = 4;
+  const SECONDS = 4;
+  const INK = '#4a3f35';
+  const MARKERS = ['#fde047', '#93c5fd', '#86efac', '#fdba74', '#c4b5fd', '#f9a8d4', '#fca5a5'];
   document.getElementById('bar').href = NEWS_URL;
 
-  const vp = document.getElementById('vp');
-  let items = [], idx = 0, paused = false;
+  const $ = id => document.getElementById(id);
+  const vp = $('vp');
+  let items = [], idx = 0, paused = false, seed = 3;
 
+  // 同一個分類名稱永遠拿到同一個螢光筆顏色
+  function markerFor(name) { let h = 0; for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return MARKERS[h % MARKERS.length]; }
   function el(tag, cls, text) { const e = document.createElement(tag); e.className = cls; e.textContent = text; return e; }
 
-  function makeItem(n) {
-    const d = document.createElement('div');
-    d.className = 'item down';
-    if (n.tag) d.appendChild(el('span', 'tag', n.tag));
-    d.appendChild(el('span', 'title', (n.pin ? '📌 ' : '') + n.title));
-    if (n.until) {
-      const p = n.until.split('-');
-      d.appendChild(el('span', 'until', '至 ' + (+p[1]) + '/' + (+p[2])));
-    }
-    return d;
+  // ---------- 手繪線條 ----------
+  function clear(s) { while (s.firstChild) s.removeChild(s.firstChild); }
+  function opts(x) { return Object.assign({ stroke: INK, strokeWidth: 1.4, roughness: 1.5, bowing: 1.2, seed: seed++ }, x || {}); }
+  function draw() {
+    seed = 3;
+    let s = $('frame'), r = s.getBoundingClientRect(); clear(s);
+    s.appendChild(rough.svg(s).rectangle(3, 3, r.width - 6, r.height - 6, opts({ strokeWidth: 1.8, roughness: 1.8 })));
+    s = $('labelBg'); r = s.getBoundingClientRect(); clear(s);
+    s.appendChild(rough.svg(s).rectangle(1, 1, r.width - 2, r.height - 2,
+      opts({ fill: '#fed7aa', fillStyle: 'hachure', hachureGap: 7, fillWeight: 0.8, hachureAngle: -40, strokeWidth: 1.5 })));
+    // 手繪大聲公
+    s = $('mega'); clear(s); const g = rough.svg(s);
+    s.appendChild(g.polygon([[3, 9], [9, 9], [19, 3], [19, 21], [9, 15], [3, 15]],
+      opts({ fill: '#fde047', fillStyle: 'hachure', hachureGap: 3, fillWeight: 1, strokeWidth: 1.4, roughness: 1.1 })));
+    s.appendChild(g.line(8, 15, 11, 22, opts({ strokeWidth: 1.6, roughness: 0.8 })));
+    s.appendChild(g.arc(20, 12, 9, 10, -Math.PI / 3, Math.PI / 3, false, opts({ strokeWidth: 1.4, roughness: 0.8 })));
+    s.appendChild(g.arc(20, 12, 17, 18, -Math.PI / 3, Math.PI / 3, false, opts({ strokeWidth: 1.4, roughness: 0.8 })));
+    s = $('moreLine'); r = s.getBoundingClientRect(); clear(s);
+    s.appendChild(rough.svg(s).curve([[0, 5], [r.width * .4, 2], [r.width, 6]], opts({ stroke: '#f59e0b', strokeWidth: 2 })));
   }
 
+  // ---------- 輪播 ----------
+  function makeItem(n) {
+    const d = document.createElement('div'); d.className = 'item down';
+    if (n.tag) { const t = el('span', 'tag', n.tag); t.style.setProperty('--mk', markerFor(n.tag)); d.appendChild(t); }
+    d.appendChild(el('span', 'title', (n.pin ? '📌 ' : '') + n.title));
+    if (n.until) { const p = n.until.split('-'); d.appendChild(el('span', 'until', '～' + (+p[1]) + '/' + (+p[2]))); }
+    return d;
+  }
   function show(list) {
     vp.innerHTML = '';
-    if (!list.length) { vp.innerHTML = '<div class="item in"><span class="title">目前沒有新消息</span></div>'; return; }
+    if (!list.length) { vp.appendChild(el('div', 'item in', '目前沒有新消息 ✏️')); return; }
     items = list.map(makeItem);
     items.forEach(d => vp.appendChild(d));
     items[0].className = 'item in';
     if (items.length > 1) setInterval(next, SECONDS * 1000);
   }
-
   function next() {
     if (paused) return;
-    const cur = items[idx];
-    idx = (idx + 1) % items.length;
-    const nxt = items[idx];
-    nxt.style.transition = 'none'; nxt.className = 'item down';
-    void nxt.offsetWidth; nxt.style.transition = '';
-    cur.className = 'item up';
-    nxt.className = 'item in';
+    const cur = items[idx]; idx = (idx + 1) % items.length; const nxt = items[idx];
+    nxt.style.transition = 'none'; nxt.className = 'item down'; void nxt.offsetWidth; nxt.style.transition = '';
+    cur.className = 'item up'; nxt.className = 'item in';
   }
-
   vp.addEventListener('mouseenter', () => paused = true);
   vp.addEventListener('mouseleave', () => paused = false);
+
+  new ResizeObserver(() => requestAnimationFrame(draw)).observe($('bar'));
+  document.fonts && document.fonts.ready.then(() => requestAnimationFrame(draw));
 
   fetch(API)
     .then(r => r.json())
