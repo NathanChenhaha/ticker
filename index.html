@@ -14,11 +14,11 @@
   :root { --page: #ffffff; --paper: #fffdf5; --dot: #e8e1cf; --ink: #4a3f35; --ink-soft: #8a7d6e; }
   @media (prefers-color-scheme: dark) { :root { --page: #191919; } }
   html, body { margin: 0; height: 100%; background: var(--page); overflow: hidden; }
-  body { font-family: "LXGW WenKai TC", "PingFang TC", "Microsoft JhengHei", sans-serif; color: var(--ink); padding: 4px; }
+  body { font-family: "LXGW WenKai TC", "PingFang TC", "Microsoft JhengHei", sans-serif; color: var(--ink); padding: 7px 8px; }
 
   a.bar {
-    position: relative; display: flex; align-items: center; gap: 14px; height: 56px; padding: 0 18px 0 12px;
-    border-radius: 12px; color: var(--ink); text-decoration: none; overflow: hidden;
+    position: relative; display: flex; align-items: center; gap: 14px; height: 100%; min-height: 46px; padding: 0 18px 0 12px;
+    border-radius: 10px; color: var(--ink); text-decoration: none; overflow: visible;
     background-color: var(--paper);
     background-image: radial-gradient(var(--dot) 1px, transparent 1.2px); background-size: 16px 16px;
   }
