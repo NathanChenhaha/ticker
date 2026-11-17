@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>班級行事曆</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link id="fontcss" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/roughjs@4.6.6/bundled/rough.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  :root {
+    --page: #ffffff;
+    --paper: #fffdf5; --dot: #e8e1cf; --ink: #4a3f35; --ink-soft: #8a7d6e;
+    --sun: #d9534f; --sat: #3b7dd8;
+    --c-活動: #93c5fd; --c-考試: #fca5a5; --c-假日: #86efac; --c-提醒: #fdba74; --c-課程: #c4b5fd; --c-其他: #e5e7eb;
+    --font: "LXGW WenKai TC", "Huninn", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) { :root { --page: #191919; } }
+  html, body { margin: 0; height: 100%; background: var(--page); overflow: hidden; }
+  body { font-family: var(--font); color: var(--ink); padding: 6px; }
+
+  .paper {
+    position: relative; height: 100%; border-radius: 14px; padding: 14px 16px 12px;
+    background-color: var(--paper);
+    background-image: radial-gradient(var(--dot) 1px, transparent 1.2px);
+    background-size: 18px 18px;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .paper > svg.frame { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+
+  header { display: flex; align-items: center; justify-content: center; gap: 14px; position: relative; flex: none; }
+  .title { position: relative; font-size: 28px; font-weight: 700; letter-spacing: 1px; padding: 0 6px 6px; min-width: 190px; text-align: center; }
+  .title svg { position: absolute; left: 0; bottom: -2px; width: 100%; height: 14px; overflow: visible; }
+  .nav { width: 38px; height: 38px; border: 0; background: none; cursor: pointer; position: relative; font: inherit; font-size: 22px; color: var(--ink); }
+  .nav svg, .today-btn svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+  .today-btn { position: absolute; right: 0; top: 50%; transform: translateY(-50%); border: 0; background: none; cursor: pointer;
+    font: inherit; font-size: 15px; color: var(--ink); padding: 6px 12px; }
+
+  .week, .grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+  .week { flex: none; margin-top: 10px; font-weight: 700; text-align: center; font-size: 15px; padding-bottom: 4px; }
+  .week div:first-child { color: var(--sun); } .week div:last-child { color: var(--sat); }
+
+  .gridwrap { position: relative; flex: 1; min-height: 0; }
+  .grid { height: 100%; grid-auto-rows: 1fr; }
+  .gridwrap > svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+  .cell { position: relative; padding: 4px 5px 2px; overflow: hidden; cursor: default; min-width: 0; }
+  .cell.has { cursor: pointer; }
+  .cell.has:hover { background: rgba(255, 230, 150, .25); }
+  .cell.other { opacity: .35; }
+  .num { font-size: 16px; font-weight: 700; display: inline-block; min-width: 26px; text-align: center; position: relative; }
+  .cell.sun .num { color: var(--sun); } .cell.sat .num { color: var(--sat); }
+  .ev { display: block; font-size: 14px; line-height: 1.35; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    padding: 0 3px; background: linear-gradient(transparent 30%, var(--mk) 30%, var(--mk) 88%, transparent 88%); }
+  .more { font-size: 12px; color: var(--ink-soft); margin-top: 1px; }
+  .dots { display: none; gap: 3px; justify-content: center; margin-top: 2px; }
+  .dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--mk); display: block; }
+
+  .legend { flex: none; display: flex; flex-wrap: wrap; gap: 4px 14px; justify-content: center; margin-top: 8px; font-size: 14px; color: var(--ink-soft); }
+  .legend span { padding: 0 4px; background: linear-gradient(transparent 30%, var(--mk) 30%, var(--mk) 88%, transparent 88%); color: var(--ink); }
+
+  .pop { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; z-index: 10; background: rgba(74, 63, 53, .18); }
+  .pop.show { display: flex; }
+  .note { position: relative; width: min(360px, 88%); max-height: 80%; overflow: auto; background: #fffbe6; padding: 18px 20px 16px;
+    transform: rotate(-1deg); box-shadow: 0 6px 18px rgba(0,0,0,.18); }
+  .note > svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+  .note h3 { margin: 0 0 10px; font-size: 20px; }
+  .note .item { margin: 10px 0; }
+  .note .item b { font-size: 17px; padding: 0 3px; background: linear-gradient(transparent 30%, var(--mk) 30%, var(--mk) 88%, transparent 88%); }
+  .note .meta { font-size: 13px; color: var(--ink-soft); margin-top: 2px; }
+  .note .desc { font-size: 15px; margin-top: 3px; white-space: pre-wrap; }
+  .note .x { position: absolute; top: 6px; right: 10px; border: 0; background: none; font: inherit; font-size: 20px; cursor: pointer; color: var(--ink-soft); }
+
+  .status { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--ink-soft); font-size: 16px; }
+
+  @media (max-width: 560px) {
+    .paper { padding: 10px 8px; }
+    .title { font-size: 22px; min-width: 140px; }
+    .today-btn { font-size: 13px; padding: 4px 8px; }
+    .ev, .more { display: none; }
+    .dots { display: flex; }
+    .num { font-size: 14px; }
+    .cell { text-align: center; }
+  }
+</style>
+</head>
+<body>
+  <div class="paper" id="paper">
+    <svg class="frame" id="frame"></svg>
+    <header>
+      <button class="nav" id="prev" aria-label="上個月">‹</button>
+      <div class="title"><span id="title"></span><svg id="underline"></svg></div>
+      <button class="nav" id="next" aria-label="下個月">›</button>
+      <button class="today-btn" id="todayBtn">今天</button>
+    </header>
+    <div class="week"><div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div></div>
+    <div class="gridwrap" id="gridwrap">
+      <div class="grid" id="grid"></div>
+      <svg id="lines"></svg>
+      <div class="status" id="status">📖 翻開行事曆中…</div>
+    </div>
+    <div class="legend" id="legend"></div>
+    <div class="pop" id="pop"><div class="note" id="note"></div></div>
+  </div>
+
+<script>
+  const API = 'https://script.google.com/macros/s/AKfycbx3aOZR4hNGWYoxNswA_JaSoQTq4S6nRQVVDPy_Ze05wUfZkpZI3Y_HoBzoHwAuzqPL/exec?view=calendar-json&month=';
+  const TAGS = ['活動', '考試', '假日', '提醒', '課程'];
+  const INK = '#4a3f35';
+
+  // ?font=huninn 可切換成粉圓體
+  if (new URLSearchParams(location.search).get('font') === 'huninn') {
+    document.getElementById('fontcss').href = 'https://fonts.googleapis.com/css2?family=Huninn&display=swap';
+    document.documentElement.style.setProperty('--font', '"Huninn", "PingFang TC", "Microsoft JhengHei", sans-serif');
+  }
+
+  const $ = id => document.getElementById(id);
+  const pad = n => (n < 10 ? '0' : '') + n;
+  const ymd = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  const mk = tag => 'var(--c-' + (TAGS.includes(tag) ? tag : '其他') + ')';
+  const now = new Date();
+  const todayStr = ymd(now);
+  let cur = new Date(now.getFullYear(), now.getMonth(), 1);
+  let events = [];
+  const cache = {};
+  let seed = 1;
+
+  // ---------- 手繪線條 ----------
+  function rc(svg) { return rough.svg(svg); }
+  function clear(svg) { while (svg.firstChild) svg.removeChild(svg.firstChild); }
+  function opts(extra) { return Object.assign({ stroke: INK, strokeWidth: 1.3, roughness: 1.4, bowing: 1.2, seed: seed++ }, extra || {}); }
+
+  function drawFrame() {
+    const s = $('frame'), r = s.getBoundingClientRect(); clear(s);
+    s.appendChild(rc(s).rectangle(4, 4, r.width - 8, r.height - 8, opts({ strokeWidth: 1.8, roughness: 1.8 })));
+  }
+  function drawUnderline() {
+    const s = $('underline'), w = s.getBoundingClientRect().width; clear(s);
+    s.appendChild(rc(s).curve([[0, 8], [w * .3, 4], [w * .6, 10], [w, 5]], opts({ stroke: '#f59e0b', strokeWidth: 2.2 })));
+  }
+  function drawButtons() {
+    ['prev', 'next'].forEach(id => {
+      const b = $(id); let s = b.querySelector('svg');
+      if (!s) { s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); b.appendChild(s); }
+      clear(s); const w = b.clientWidth, h = b.clientHeight;
+      s.appendChild(rc(s).ellipse(w / 2, h / 2, w - 4, h - 4, opts({ strokeWidth: 1.4 })));
+    });
+    const b = $('todayBtn'); let s = b.querySelector('svg');
+    if (!s) { s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); b.appendChild(s); }
+    clear(s);
+    s.appendChild(rc(s).rectangle(2, 2, b.clientWidth - 4, b.clientHeight - 4, opts({ fill: '#fde68a', fillStyle: 'hachure', hachureGap: 5, fillWeight: 1, strokeWidth: 1.2 })));
+  }
+  function drawGrid(rows) {
+    const s = $('lines'), r = s.getBoundingClientRect(); clear(s);
+    const g = rc(s), w = r.width, h = r.height;
+    for (let i = 0; i <= rows; i++) s.appendChild(g.line(0, h * i / rows, w, h * i / rows, opts({ strokeWidth: i === 0 || i === rows ? 1.5 : 1, roughness: 1.2 })));
+    for (let j = 0; j <= 7; j++) s.appendChild(g.line(w * j / 7, 0, w * j / 7, h, opts({ strokeWidth: j === 0 || j === 7 ? 1.5 : 1, roughness: 1.2 })));
+    const t = document.querySelector('.cell.today .num');
+    if (t) {
+      const a = t.getBoundingClientRect();
+      s.appendChild(g.ellipse(a.left - r.left + a.width / 2, a.top - r.top + a.height / 2, a.width + 14, a.height + 8,
+        opts({ stroke: '#e11d48', strokeWidth: 2, roughness: 1.6 })));
+    }
+  }
+  function drawAll() {
+    seed = 7;                               // 固定亂數，重畫時線條不會一直跳動
+    drawFrame(); drawUnderline(); drawButtons();
+    drawGrid(+$('grid').dataset.rows || 6);
+  }
+
+  // ---------- 月曆 ----------
+  function render() {
+    const y = cur.getFullYear(), m = cur.getMonth();
+    $('title').textContent = y + '年 ' + (m + 1) + '月';
+    const start = new Date(y, m, 1); start.setDate(1 - start.getDay());
+    const lastDay = new Date(y, m + 1, 0);
+    const rows = Math.ceil((new Date(y, m, 1).getDay() + lastDay.getDate()) / 7);
+    const grid = $('grid'); grid.innerHTML = ''; grid.dataset.rows = rows;
+    grid.style.gridTemplateRows = 'repeat(' + rows + ', 1fr)';
+    const maxShow = rows > 5 ? 2 : 3;
+    for (let i = 0; i < rows * 7; i++) {
+      const d = new Date(start); d.setDate(start.getDate() + i);
+      const ds = ymd(d), list = events.filter(e => e.start <= ds && e.end >= ds);
+      const c = document.createElement('div');
+      c.className = 'cell' + (d.getMonth() !== m ? ' other' : '') + (d.getDay() === 0 ? ' sun' : '') +
+                    (d.getDay() === 6 ? ' sat' : '') + (ds === todayStr ? ' today' : '') + (list.length ? ' has' : '');
+      const n = document.createElement('span'); n.className = 'num'; n.textContent = d.getDate(); c.appendChild(n);
+      const dots = document.createElement('div'); dots.className = 'dots';
+      list.forEach((e, k) => {
+        if (k < maxShow) {
+          const t = document.createElement('span'); t.className = 'ev'; t.style.setProperty('--mk', mk(e.tag)); t.textContent = e.title; c.appendChild(t);
+        }
+        if (k < 4) { const i2 = document.createElement('i'); i2.style.setProperty('--mk', mk(e.tag)); dots.appendChild(i2); }
+      });
+      if (list.length > maxShow) { const mo = document.createElement('div'); mo.className = 'more'; mo.textContent = '＋' + (list.length - maxShow) + ' 項'; c.appendChild(mo); }
+      c.appendChild(dots);
+      if (list.length) c.onclick = () => openNote(d, list);
+      grid.appendChild(c);
+    }
+    requestAnimationFrame(drawAll);
+  }
+
+  function fmt(s) { const p = s.split('-'); return (+p[1]) + '/' + (+p[2]); }
+  function openNote(d, list) {
+    const note = $('note'); note.innerHTML = '';
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); note.appendChild(svg);
+    const x = document.createElement('button'); x.className = 'x'; x.textContent = '✕'; x.onclick = closeNote; note.appendChild(x);
+    const h = document.createElement('h3'); h.textContent = (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + '日一二三四五六'[d.getDay()].replace(/^/, '（週') + '）'; note.appendChild(h);
+    list.forEach(e => {
+      const it = document.createElement('div'); it.className = 'item';
+      const b = document.createElement('b'); b.style.setProperty('--mk', mk(e.tag)); b.textContent = e.title; it.appendChild(b);
+      const meta = document.createElement('div'); meta.className = 'meta';
+      meta.textContent = (e.tag ? e.tag + '｜' : '') + (e.start === e.end ? fmt(e.start) : fmt(e.start) + ' ～ ' + fmt(e.end));
+      it.appendChild(meta);
+      if (e.note) { const ds = document.createElement('div'); ds.className = 'desc'; ds.textContent = e.note; it.appendChild(ds); }
+      note.appendChild(it);
+    });
+    $('pop').classList.add('show');
+    requestAnimationFrame(() => { clear(svg); svg.appendChild(rc(svg).rectangle(3, 3, note.clientWidth - 6, note.clientHeight - 6, opts({ strokeWidth: 1.5 }))); });
+  }
+  function closeNote() { $('pop').classList.remove('show'); }
+  $('pop').onclick = e => { if (e.target.id === 'pop') closeNote(); };
+
+  function legend() {
+    $('legend').innerHTML = '';
+    TAGS.forEach(t => { const s = document.createElement('span'); s.style.setProperty('--mk', mk(t)); s.textContent = t; $('legend').appendChild(s); });
+  }
+
+  function load() {
+    const key = cur.getFullYear() + '-' + pad(cur.getMonth() + 1);
+    events = cache[key] || [];
+    render();
+    if (cache[key]) { $('status').style.display = 'none'; return; }
+    $('status').style.display = 'flex'; $('status').textContent = '📖 翻開行事曆中…';
+    fetch(API + key)
+      .then(r => r.json())
+      .then(d => {
+        if (!d.ok) throw new Error(d.error);
+        cache[key] = d.events;
+        if (key === cur.getFullYear() + '-' + pad(cur.getMonth() + 1)) { events = d.events; render(); }
+        $('status').style.display = 'none';
+      })
+      .catch(err => { console.error(err); $('status').textContent = '⚠️ 行事曆載入失敗，請稍後再試'; });
+  }
+
+  $('prev').onclick = () => { cur = new Date(cur.getFullYear(), cur.getMonth() - 1, 1); load(); };
+  $('next').onclick = () => { cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1); load(); };
+  $('todayBtn').onclick = () => { cur = new Date(now.getFullYear(), now.getMonth(), 1); load(); };
+  new ResizeObserver(() => requestAnimationFrame(drawAll)).observe($('paper'));
+  document.fonts && document.fonts.ready.then(() => requestAnimationFrame(drawAll));
+
+  legend();
+  load();
+</script>
+</body>
+</html>
