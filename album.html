@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>活動相簿</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/roughjs@4.6.6/bundled/rough.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  :root { --page: #ffffff; --paper: #fffdf5; --dot: #e8e1cf; --ink: #4a3f35; --ink-soft: #8a7d6e; }
+  @media (prefers-color-scheme: dark) { :root { --page: #191919; } }
+  html, body { margin: 0; height: 100%; background: var(--page); overflow: hidden; }
+  body { font-family: "LXGW WenKai TC", "PingFang TC", "Microsoft JhengHei", sans-serif; color: var(--ink); padding: 7px 8px; }
+
+  .paper { position: relative; height: 100%; border-radius: 12px; padding: 14px 14px 10px; display: flex; flex-direction: column; gap: 10px;
+    background-color: var(--paper); background-image: radial-gradient(var(--dot) 1px, transparent 1.2px); background-size: 18px 18px; }
+  svg.deco { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+
+  .paper .stage { cursor: zoom-in; }
+  .stage { position: relative; flex: 1; min-height: 0; overflow: hidden; touch-action: pan-y; user-select: none; cursor: grab; }
+  .stage.dragging { cursor: grabbing; }
+  .track { display: flex; height: 100%; transition: transform .35s ease; }
+  .slide { flex: 0 0 100%; height: 100%; display: flex; align-items: center; justify-content: center; padding: 6px 54px; }
+  .slide img { display: block; max-width: 100%; max-height: 100%; pointer-events: none; }
+  .slide img.pol { background: #fff; padding: 8px; box-shadow: 0 4px 14px rgba(74,63,53,.22); transform: rotate(var(--r)); }
+
+  .nav { position: absolute; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; border: 0; z-index: 3; border-radius: 50%;
+    background: var(--paper); cursor: pointer; font: inherit; font-size: 22px; color: var(--ink); }
+  .nav.prev { left: 4px; } .nav.next { right: 4px; }
+  .nav svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+  .count { position: absolute; top: 4px; left: 8px; z-index: 3; font-size: 15px; font-weight: 700; padding: 0 6px;
+    background: linear-gradient(transparent 35%, #fde68a 35%, #fde68a 90%, transparent 90%); }
+
+  .thumbs { flex: none; display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 6px; scroll-behavior: smooth; scrollbar-width: thin; }
+  .thumbs img { flex: none; width: 66px; height: 50px; object-fit: cover; cursor: pointer; opacity: .5; border: 3px solid #fff;
+    box-shadow: 0 1px 4px rgba(0,0,0,.18); transition: opacity .2s, transform .2s; }
+  .thumbs img.on { opacity: 1; transform: translateY(-2px) rotate(-2deg); outline: 2px solid #f59e0b; }
+
+  /* 放大檢視 */
+  .zoom { position: fixed; inset: 0; z-index: 20; display: none; background: rgba(30, 25, 20, .92); }
+  .zoom.show { display: block; }
+  .zoom .track { height: 100%; }
+  .zoom .slide { padding: 40px 60px; cursor: zoom-out; }
+  .zoom .slide img { max-height: 100%; box-shadow: 0 6px 24px rgba(0,0,0,.4); border: 6px solid #fff; }
+  .zoom .nav { background: rgba(255,255,255,.12); color: #fff; }
+  .zoom .close { position: absolute; top: 10px; right: 12px; z-index: 3; border: 0; background: rgba(255,255,255,.15); color: #fff;
+    font: inherit; font-size: 18px; border-radius: 999px; padding: 4px 14px; cursor: pointer; }
+  .zoom .zcount { position: absolute; top: 14px; left: 16px; color: #fff; font-size: 15px; }
+
+  .status { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--ink-soft); font-size: 16px; text-align: center; padding: 20px; }
+  @media (max-width: 520px) { .slide { padding: 4px 8px; } .nav { display: none; } .thumbs img { width: 52px; height: 40px; } .zoom .slide { padding: 50px 8px; } }
+</style>
+</head>
+<body>
+  <div class="paper" id="paper">
+    <svg class="deco" id="frame"></svg>
+    <div class="stage" id="stage"><div class="track" id="track"></div><span class="count" id="count"></span></div>
+    <button class="nav prev" id="prev" aria-label="上一張">‹</button>
+    <button class="nav next" id="next" aria-label="下一張">›</button>
+    <div class="thumbs" id="thumbs"></div>
+    <div class="status" id="status">📷 翻開相簿中…</div>
+  </div>
+
+  <div class="zoom" id="zoom">
+    <div class="stage" id="zstage" style="height:100%"><div class="track" id="ztrack"></div></div>
+    <span class="zcount" id="zcount"></span>
+    <button class="close" id="zclose">✕ 關閉</button>
+    <button class="nav prev" id="zprev">‹</button>
+    <button class="nav next" id="znext">›</button>
+  </div>
+
+<script>
+  const API = 'https://script.google.com/macros/s/AKfycby31yL6uCp_m9Fpd9HXaVzos06xvRxefJQPpDZ0FXwiNx_IxQjURvTScQzrgHShHI48/exec';
+  const FOLDER = new URLSearchParams(location.search).get('f') || '';
+  const INK = '#4a3f35';
+  const $ = id => document.getElementById(id);
+  const big   = id => 'https://lh3.googleusercontent.com/d/' + id + '=w1600';
+  const small = id => 'https://lh3.googleusercontent.com/d/' + id + '=w200';
+  let photos = [], idx = 0, seed = 9;
+
+  // ---------- 手繪線條 ----------
+  function clear(s) { while (s.firstChild) s.removeChild(s.firstChild); }
+  function opts(x) { return Object.assign({ stroke: INK, strokeWidth: 1.4, roughness: 1.5, bowing: 1.2, seed: seed++ }, x || {}); }
+  function draw() {
+    seed = 9;
+    const s = $('frame'), r = s.getBoundingClientRect(); clear(s);
+    s.appendChild(rough.svg(s).rectangle(3, 3, r.width - 6, r.height - 6, opts({ strokeWidth: 1.8, roughness: 1.8 })));
+    ['prev', 'next'].forEach(id => {
+      const b = $(id); let v = b.querySelector('svg');
+      if (!v) { v = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); b.appendChild(v); }
+      clear(v); v.appendChild(rough.svg(v).ellipse(20, 20, 36, 36, opts({ strokeWidth: 1.4 })));
+    });
+  }
+
+  // ---------- 建立相簿 ----------
+  function slides(track, zoom) {
+    photos.forEach((p, i) => {
+      const s = document.createElement('div'); s.className = 'slide';
+      const im = document.createElement('img'); im.alt = ''; im.dataset.src = big(p);
+      if (!zoom) { im.className = 'pol'; im.style.setProperty('--r', ((i * 37) % 5 - 2) * 0.5 + 'deg'); }
+      s.appendChild(im);
+      track.appendChild(s);
+    });
+  }
+  function build(list) {
+    photos = list;
+    if (!photos.length) { $('status').textContent = '這個相簿還沒有照片 📷'; return; }
+    $('status').style.display = 'none';
+    slides($('track'), false); slides($('ztrack'), true);
+    photos.forEach((p, i) => {
+      const t = document.createElement('img'); t.src = small(p); t.loading = 'lazy'; t.onclick = () => go(i); $('thumbs').appendChild(t);
+    });
+    if (photos.length < 2) { $('prev').style.display = $('next').style.display = 'none'; $('thumbs').style.display = 'none'; }
+    go(0, true);
+  }
+
+  function load(track, around) {
+    [around - 1, around, around + 1, around + 2].forEach(k => {
+      const im = track.children[(k + photos.length) % photos.length].querySelector('img');
+      if (!im.src) im.src = im.dataset.src;
+    });
+  }
+  function place(track, instant) {
+    if (instant) track.style.transition = 'none';
+    track.style.transform = 'translateX(' + (-idx * 100) + '%)';
+    if (instant) { void track.offsetWidth; track.style.transition = ''; }
+  }
+  function go(i, instant) {
+    if (!photos.length) return;
+    idx = (i + photos.length) % photos.length;
+    place($('track'), instant); place($('ztrack'), instant);
+    load($('track'), idx); if ($('zoom').classList.contains('show')) load($('ztrack'), idx);
+    $('count').textContent = (idx + 1) + ' / ' + photos.length;
+    $('zcount').textContent = (idx + 1) + ' / ' + photos.length;
+    [...$('thumbs').children].forEach((t, k) => t.classList.toggle('on', k === idx));
+    const on = $('thumbs').children[idx];
+    if (on) $('thumbs').scrollLeft = on.offsetLeft - $('thumbs').clientWidth / 2 + on.clientWidth / 2;
+  }
+
+  // ---------- 滑動（手指或滑鼠拖曳） ----------
+  function swipe(stage, track, onTap) {
+    let x0 = null, dx = 0, w = 1;
+    stage.addEventListener('pointerdown', e => {
+      if (e.target.closest('button')) return;
+      x0 = e.clientX; dx = 0; w = stage.clientWidth; track.style.transition = 'none'; stage.classList.add('dragging');
+      stage.setPointerCapture(e.pointerId);
+    });
+    stage.addEventListener('pointermove', e => {
+      if (x0 === null) return; dx = e.clientX - x0;
+      track.style.transform = 'translateX(calc(' + (-idx * 100) + '% + ' + dx + 'px))';
+    });
+    const end = () => {
+      if (x0 === null) return; x0 = null; stage.classList.remove('dragging'); track.style.transition = '';
+      if (Math.abs(dx) > w * 0.15) go(idx + (dx < 0 ? 1 : -1));
+      else { go(idx); if (Math.abs(dx) < 5) onTap(); }
+    };
+    stage.addEventListener('pointerup', end); stage.addEventListener('pointercancel', end);
+  }
+  function openZoom() {
+    $('zoom').classList.add('show'); go(idx, true); load($('ztrack'), idx);
+    const el = document.documentElement;                       // 能全螢幕就全螢幕
+    if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+  }
+  function closeZoom() {
+    $('zoom').classList.remove('show');
+    if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
+  }
+  swipe($('stage'), $('track'), openZoom);
+  swipe($('zstage'), $('ztrack'), closeZoom);
+  $('prev').onclick = () => go(idx - 1);  $('next').onclick = () => go(idx + 1);
+  $('zprev').onclick = () => go(idx - 1); $('znext').onclick = () => go(idx + 1);
+  $('zclose').onclick = closeZoom;
+  document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) $('zoom').classList.remove('show'); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowLeft') go(idx - 1);
+    if (e.key === 'ArrowRight') go(idx + 1);
+    if (e.key === 'Escape') closeZoom();
+  });
+
+  new ResizeObserver(() => requestAnimationFrame(draw)).observe($('paper'));
+  document.fonts && document.fonts.ready.then(() => requestAnimationFrame(draw));
+
+  if (!FOLDER) $('status').textContent = '⚠️ 這個相簿還沒設定資料夾';
+  else fetch(API + '?view=photos-json&f=' + encodeURIComponent(FOLDER))
+    .then(r => r.json())
+    .then(d => { if (d.ok) build(d.photos); else throw new Error(d.error); })
+    .catch(err => { console.error(err); $('status').textContent = '⚠️ ' + (String(err.message || '').indexOf('共用') >= 0 ? err.message : '相簿載入失敗，請稍後再試'); });
+</script>
+</body>
+</html>
