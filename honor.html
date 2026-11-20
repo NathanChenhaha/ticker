@@ -4,156 +4,188 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>榮譽榜</title>
-<base target="_blank">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/roughjs@4.6.6/bundled/rough.js"></script>
 <style>
   * { box-sizing: border-box; }
-  :root { --page: #ffffff; --paper: #fffdf5; --dot: #e8e1cf; --ink: #4a3f35; --ink-soft: #8a7d6e; }
+  :root { --page: #ffffff; --ink: #4a3f35; --ink-soft: #8a7d6e; --cork: #d9b48a; --cork-dot: #b98f62; --paper: #fffdf5; }
   @media (prefers-color-scheme: dark) { :root { --page: #191919; } }
   html, body { margin: 0; height: 100%; background: var(--page); overflow: hidden; }
-  body { font-family: "LXGW WenKai TC", "PingFang TC", "Microsoft JhengHei", sans-serif; color: var(--ink); padding: 7px 8px; }
+  body { font-family: "LXGW WenKai TC", "PingFang TC", "Microsoft JhengHei", sans-serif; color: var(--ink); padding: 8px; }
 
-  a.bar {
-    position: relative; display: flex; align-items: center; gap: 14px; height: 100%; min-height: 46px; padding: 0 18px 0 12px;
-    border-radius: 10px; color: var(--ink); text-decoration: none; overflow: visible;
-    background-color: var(--paper);
-    background-image: radial-gradient(var(--dot) 1px, transparent 1.2px); background-size: 16px 16px;
-  }
-  a.bar:hover { background-color: #fff8e1; }
+  /* 布告欄：木框＋軟木塞 */
+  .board { position: relative; height: 100%; border-radius: 10px; padding: 46px 16px 22px;
+    background-color: var(--cork);
+    background-image:
+      radial-gradient(var(--cork-dot) 1px, transparent 1.4px),
+      radial-gradient(rgba(255,255,255,.25) 1px, transparent 1.3px);
+    background-size: 9px 9px, 13px 13px; background-position: 0 0, 4px 6px; }
   svg.deco { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
 
-  .label { position: relative; flex: none; font-weight: 700; font-size: 17px; padding: 6px 14px; z-index: 1; display: flex; align-items: center; gap: 4px; }
-  .label #labelBg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; z-index: -1; }
-  .cup { width: 28px; height: 26px; flex: none; overflow: visible; }
+  /* 上方的標題紙條 */
+  .banner { position: absolute; top: 4px; left: 50%; transform: translateX(-50%) rotate(-1.5deg); z-index: 3;
+    padding: 6px 30px 5px; font-weight: 700; font-size: 18px; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .banner svg.bg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; z-index: -1; }
+  .cup { width: 24px; height: 22px; overflow: visible; }
 
-  .viewport { position: relative; flex: 1; height: 100%; overflow: hidden; }
-  .item { position: absolute; inset: 0; display: flex; align-items: center; gap: 9px; font-size: 18px; white-space: nowrap;
-    transition: transform .5s ease, opacity .5s ease; }
-  .item.in   { transform: translateY(0);     opacity: 1; }
-  .item.down { transform: translateY(100%);  opacity: 0; }
-  .item.up   { transform: translateY(-100%); opacity: 0; }
-  .medal { width: 24px; height: 28px; flex: none; overflow: visible; }
-  .title { overflow: hidden; text-overflow: ellipsis; font-weight: 700; flex: 0 1 auto; min-width: 0; }
-  .who { flex: none; font-size: 17px; }
-  .who::before { content: '— '; color: var(--ink-soft); }
-  .tag { flex: none; font-size: 15px; padding: 0 4px;
-    background: linear-gradient(transparent 30%, var(--mk) 30%, var(--mk) 88%, transparent 88%); }
-  .date { flex: none; font-size: 15px; color: var(--ink-soft); }
+  /* 獎狀牆 */
+  .wall { position: relative; height: 100%; }
+  .page { position: absolute; inset: 0; display: grid; gap: 14px 12px; align-content: start; justify-content: center;
+    transition: opacity .6s ease; }
+  .page.hide { opacity: 0; pointer-events: none; }
 
-  .more { position: relative; flex: none; font-size: 16px; font-weight: 700; padding-bottom: 4px; }
-  .more svg { position: absolute; left: 0; bottom: -2px; width: 100%; height: 10px; overflow: visible; }
+  .cert { position: relative; width: var(--cw); height: var(--ch); padding: 15px 10px 8px; text-align: center;
+    transform: rotate(var(--rot)); transition: transform .2s; }
+  .cert:hover { transform: rotate(0deg) scale(1.06); z-index: 5; }
+  .cert svg.paper { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; z-index: 0;
+    filter: drop-shadow(2px 3px 0 rgba(74,63,53,.25)); }
+  .cert > *:not(svg) { position: relative; z-index: 1; }
+  .cert .head { font-size: 13px; font-weight: 700; color: #c2410c; letter-spacing: 6px; margin-right: -6px; line-height: 1.2; }
+  .cert .title { font-size: 14px; font-weight: 700; line-height: 1.3; margin-top: 3px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .cert .who { font-size: 14px; margin-top: 3px; padding: 0 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cert .date { position: absolute; left: 10px; bottom: 7px; font-size: 11.5px; color: var(--ink-soft); }
+  .cert svg.seal { position: absolute; right: 6px; bottom: 4px; width: 26px; height: 26px; overflow: visible; }
+  .cert svg.pin { position: absolute; top: -9px; left: 50%; margin-left: -9px; width: 18px; height: 18px; overflow: visible; z-index: 2; }
 
-  @media (max-width: 620px) { .date, .tag { display: none; } }
-  @media (max-width: 520px) {
-    .more { display: none; }
-    .item { font-size: 16px; } .who { font-size: 15px; } .label { font-size: 15px; padding: 5px 10px; }
-  }
+  .dots { position: absolute; left: 0; right: 0; bottom: 5px; display: flex; justify-content: center; gap: 6px; z-index: 3; }
+  .dots i { width: 8px; height: 8px; border-radius: 50%; background: rgba(74,63,53,.3); cursor: pointer; }
+  .dots i.on { background: var(--ink); }
+  .empty { position: absolute; inset: 0; display: grid; place-items: center; font-size: 17px; font-weight: 700; color: #6b4f33; }
 </style>
 </head>
 <body>
-  <a class="bar" id="bar" href="#">
+  <div class="board" id="board">
     <svg class="deco" id="frame"></svg>
-    <span class="label" id="label"><svg id="labelBg"></svg><svg class="cup" id="cup" viewBox="0 0 28 26"></svg>榮譽榜</span>
-    <div class="viewport" id="vp"><div class="item in"><span class="title">擦亮獎盃中…</span></div></div>
-    <span class="more" id="more">看全部 ›<svg id="moreLine"></svg></span>
-  </a>
+    <div class="banner" id="banner"><svg class="bg" id="bannerBg"></svg><svg class="cup" id="cup" viewBox="0 0 28 26"></svg>榮譽榜</div>
+    <div class="wall" id="wall"><div class="empty">擦亮獎盃中…</div></div>
+    <div class="dots" id="dots"></div>
+  </div>
 
 <script>
-  // 「看全部」連到的頁面：可換成發布後的 notion.site 網址
-  const HONOR_URL = "https://www.notion.so/41e2dfee609581f1a555fb72dace59cf";
   const API = "https://script.google.com/macros/s/AKfycbx3aOZR4hNGWYoxNswA_JaSoQTq4S6nRQVVDPy_Ze05wUfZkpZI3Y_HoBzoHwAuzqPL/exec?view=honor-json";
-  const SECONDS = 4;
+  const SECONDS = 6;                       // 獎狀多於一頁時，每幾秒換一頁
   const INK = '#4a3f35';
-  const MARKERS = ['#fde047', '#93c5fd', '#86efac', '#fdba74', '#c4b5fd', '#f9a8d4', '#fca5a5'];
-  const MEDAL = { '金牌': '#facc15', '銀牌': '#cbd5e1', '銅牌': '#f59e0b', '佳作': '#93c5fd', '其他': '#86efac' };
-  const RIBBON = { '金牌': '#ef4444', '銀牌': '#3b82f6', '銅牌': '#22c55e', '佳作': '#a78bfa', '其他': '#f472b6' };
-  document.getElementById('bar').href = HONOR_URL;
+  const SEAL = { '金牌': '#facc15', '銀牌': '#cbd5e1', '銅牌': '#f59e0b', '佳作': '#93c5fd', '其他': '#86efac' };
+  const PINS = ['#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#a855f7', '#ec4899'];
+  const PAPERS = ['#fffdf5', '#fff7e0', '#fdf2f8', '#f0f9ff', '#f7fee7'];
 
   const $ = id => document.getElementById(id);
-  const vp = $('vp');
-  let items = [], data = [], idx = 0, paused = false, seed = 3;
+  let data = [], pages = [], cur = 0, timer = null, seed = 3, paused = false;
 
-  function markerFor(name) { let h = 0; for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return MARKERS[h % MARKERS.length]; }
-  function el(tag, cls, text) { const e = document.createElement(tag); e.className = cls; e.textContent = text; return e; }
-  function svgEl(cls, w, h) { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('class', cls); s.setAttribute('viewBox', '0 0 ' + w + ' ' + h); return s; }
-
-  // ---------- 手繪線條 ----------
+  function el(tag, cls, text) { const e = document.createElement(tag); e.className = cls; if (text != null) e.textContent = text; return e; }
+  function svgEl(cls, w, h) { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('class', cls); if (w) s.setAttribute('viewBox', '0 0 ' + w + ' ' + h); return s; }
   function clear(s) { while (s.firstChild) s.removeChild(s.firstChild); }
-  function opts(x) { return Object.assign({ stroke: INK, strokeWidth: 1.4, roughness: 1.5, bowing: 1.2, seed: seed++ }, x || {}); }
+  function opts(x) { return Object.assign({ stroke: INK, strokeWidth: 1.4, roughness: 1.4, bowing: 1.2, seed: seed++ }, x || {}); }
 
-  // 手繪獎牌：兩條緞帶＋一個圓牌
-  function drawMedal(s, kind) {
-    clear(s); const g = rough.svg(s); const rib = RIBBON[kind] || RIBBON['其他'];
-    s.appendChild(g.polygon([[5, 1], [10, 1], [14, 12], [10, 13]], opts({ fill: rib, fillStyle: 'solid', strokeWidth: 1, roughness: 0.8 })));
-    s.appendChild(g.polygon([[19, 1], [14, 1], [10, 12], [14, 13]], opts({ fill: rib, fillStyle: 'solid', strokeWidth: 1, roughness: 0.8 })));
-    s.appendChild(g.circle(12, 19, 15, opts({ fill: MEDAL[kind] || MEDAL['其他'], fillStyle: 'hachure', hachureGap: 2.6, fillWeight: 1.1, strokeWidth: 1.3, roughness: 1 })));
-    s.appendChild(g.circle(12, 19, 7, opts({ strokeWidth: 0.9, roughness: 0.8 })));
-  }
-
-  function draw() {
+  // ---------- 外框、標題 ----------
+  function drawFrame() {
     seed = 3;
-    let s = $('frame'), r = s.getBoundingClientRect(); clear(s);
-    s.appendChild(rough.svg(s).rectangle(3, 3, r.width - 6, r.height - 6, opts({ strokeWidth: 1.8, roughness: 1.8 })));
-    s = $('labelBg'); r = s.getBoundingClientRect(); clear(s);
-    s.appendChild(rough.svg(s).rectangle(1, 1, r.width - 2, r.height - 2,
-      opts({ fill: '#fde68a', fillStyle: 'hachure', hachureGap: 7, fillWeight: 0.8, hachureAngle: -40, strokeWidth: 1.5 })));
-    // 手繪獎盃
-    s = $('cup'); clear(s); const g = rough.svg(s);
+    let s = $('frame'), r = s.getBoundingClientRect(); clear(s); let g = rough.svg(s);
+    s.appendChild(g.rectangle(4, 4, r.width - 8, r.height - 8, opts({ stroke: '#7c5a3a', strokeWidth: 7, roughness: 1.2 })));
+    s.appendChild(g.rectangle(1, 1, r.width - 2, r.height - 2, opts({ strokeWidth: 1.6, roughness: 1.6 })));
+    s.appendChild(g.rectangle(9, 9, r.width - 18, r.height - 18, opts({ strokeWidth: 1.1, roughness: 1.6 })));
+    s = $('bannerBg'); r = s.getBoundingClientRect(); clear(s); g = rough.svg(s);
+    s.appendChild(g.rectangle(1, 1, r.width - 2, r.height - 2,
+      opts({ fill: '#fde68a', fillStyle: 'hachure', hachureGap: 6, fillWeight: 0.9, hachureAngle: -40, strokeWidth: 1.5 })));
+    s.appendChild(g.circle(10, r.height / 2, 7, opts({ fill: '#ef4444', fillStyle: 'solid', strokeWidth: 1, roughness: 0.6 })));
+    s.appendChild(g.circle(r.width - 10, r.height / 2, 7, opts({ fill: '#3b82f6', fillStyle: 'solid', strokeWidth: 1, roughness: 0.6 })));
+    s = $('cup'); clear(s); g = rough.svg(s);
     s.appendChild(g.path('M7 3 H21 V9 C21 14 17 17 14 17 C11 17 7 14 7 9 Z',
       opts({ fill: '#facc15', fillStyle: 'hachure', hachureGap: 2.6, fillWeight: 1, strokeWidth: 1.4, roughness: 1 })));
     s.appendChild(g.arc(7, 8, 8, 8, Math.PI / 2, Math.PI * 3 / 2, false, opts({ strokeWidth: 1.3, roughness: 0.7 })));
     s.appendChild(g.arc(21, 8, 8, 8, -Math.PI / 2, Math.PI / 2, false, opts({ strokeWidth: 1.3, roughness: 0.7 })));
     s.appendChild(g.line(14, 17, 14, 21, opts({ strokeWidth: 1.5, roughness: 0.6 })));
     s.appendChild(g.rectangle(9, 21, 10, 3.5, opts({ fill: '#fdba74', fillStyle: 'solid', strokeWidth: 1.2, roughness: 0.8 })));
-    s = $('moreLine'); r = s.getBoundingClientRect(); clear(s);
-    s.appendChild(rough.svg(s).curve([[0, 5], [r.width * .4, 2], [r.width, 6]], opts({ stroke: '#f59e0b', strokeWidth: 2 })));
-    items.forEach((d, i) => { const m = d.querySelector('svg.medal'); if (m) drawMedal(m, data[i].medal); });
   }
 
-  // ---------- 輪播 ----------
-  function makeItem(h) {
-    const d = document.createElement('div'); d.className = 'item down';
-    d.appendChild(svgEl('medal', 24, 28));
-    d.appendChild(el('span', 'title', h.title));
-    if (h.student) d.appendChild(el('span', 'who', h.student));
-    if (h.tag) { const t = el('span', 'tag', h.tag); t.style.setProperty('--mk', markerFor(h.tag)); d.appendChild(t); }
-    if (h.date) { const p = h.date.split('-'); d.appendChild(el('span', 'date', (+p[1]) + '/' + (+p[2]))); }
-    return d;
+  // ---------- 一張小獎狀 ----------
+  function makeCert(h, i, cw, ch) {
+    const c = el('div', 'cert'); c.title = h.title + (h.student ? '\n' + h.student : '');
+    c.style.setProperty('--rot', (((i * 37) % 7) - 3) * 0.9 + 'deg');
+    const paper = svgEl('paper'), pin = svgEl('pin', 18, 18), seal = svgEl('seal', 26, 26);
+    c.appendChild(paper); c.appendChild(pin);
+    c.appendChild(el('div', 'head', '獎狀'));
+    c.appendChild(el('div', 'title', h.title));
+    if (h.student) c.appendChild(el('div', 'who', h.student));
+    if (h.date) { const p = h.date.split('-'); c.appendChild(el('div', 'date', (+p[1]) + '/' + (+p[2]))); }
+    c.appendChild(seal);
+    c._draw = () => {
+      seed = 50 + i * 9;
+      clear(paper); let g = rough.svg(paper);
+      paper.setAttribute('viewBox', '0 0 ' + cw + ' ' + ch);
+      paper.appendChild(g.rectangle(2, 2, cw - 4, ch - 4, opts({ fill: PAPERS[i % PAPERS.length], fillStyle: 'solid', strokeWidth: 1.3, roughness: 1.1 })));
+      paper.appendChild(g.rectangle(7, 7, cw - 14, ch - 14, opts({ stroke: '#d97706', strokeWidth: 1, roughness: 1.3 })));
+      clear(pin); g = rough.svg(pin);
+      pin.appendChild(g.circle(9, 9, 13, opts({ fill: PINS[i % PINS.length], fillStyle: 'solid', strokeWidth: 1.1, roughness: 0.7 })));
+      pin.appendChild(g.circle(7, 7, 3.5, opts({ stroke: 'none', fill: 'rgba(255,255,255,.7)', fillStyle: 'solid' })));
+      clear(seal); g = rough.svg(seal);
+      seal.appendChild(g.circle(13, 13, 22, opts({ fill: SEAL[h.medal] || SEAL['其他'], fillStyle: 'hachure', hachureGap: 2.4, fillWeight: 1, strokeWidth: 1.2, roughness: 1 })));
+      seal.appendChild(g.circle(13, 13, 11, opts({ strokeWidth: 0.9, roughness: 0.8 })));
+    };
+    return c;
   }
+
+  // ---------- 排版：算出一頁放得下幾張 ----------
+  function layout() {
+    const wall = $('wall'), W = wall.clientWidth, H = wall.clientHeight;
+    if (!data.length || W < 50) return;
+    const gapX = 12, gapY = 14;
+    let cw = W < 360 ? 132 : 150, ch = 108;
+    const cols = Math.max(1, Math.floor((W + gapX) / (cw + gapX)));
+    const rows = Math.max(1, Math.floor((H + gapY) / (ch + gapY)));
+    const per = cols * rows;
+    clearInterval(timer); wall.innerHTML = ''; pages = []; $('dots').innerHTML = '';
+    for (let p = 0; p * per < data.length; p++) {
+      const pg = el('div', 'page' + (p ? ' hide' : ''));
+      pg.style.gridTemplateColumns = 'repeat(' + cols + ', ' + cw + 'px)';
+      pg.style.setProperty('--cw', cw + 'px'); pg.style.setProperty('--ch', ch + 'px');
+      data.slice(p * per, (p + 1) * per).forEach((h, k) => pg.appendChild(makeCert(h, p * per + k, cw, ch)));
+      wall.appendChild(pg); pages.push(pg);
+    }
+    cur = 0;
+    pages.forEach(pg => pg.querySelectorAll('.cert').forEach(c => c._draw()));
+    if (pages.length > 1) {
+      pages.forEach((_, p) => { const d = el('i', p ? '' : 'on'); d.onclick = () => go(p); $('dots').appendChild(d); });
+      timer = setInterval(() => { if (!paused) go((cur + 1) % pages.length); }, SECONDS * 1000);
+    }
+  }
+  function go(p) {
+    pages[cur].classList.add('hide'); cur = p; pages[cur].classList.remove('hide');
+    [...$('dots').children].forEach((d, k) => d.className = k === cur ? 'on' : '');
+  }
+  $('wall').addEventListener('mouseenter', () => paused = true);
+  $('wall').addEventListener('mouseleave', () => paused = false);
+
   function show(list) {
-    vp.innerHTML = '';
-    if (!list.length) { vp.appendChild(el('div', 'item in', '榮譽榜等你來寫下第一筆 ✨')); return; }
-    data = list; items = list.map(makeItem);
-    items.forEach(d => vp.appendChild(d));
-    items[0].className = 'item in';
-    requestAnimationFrame(draw);
-    if (items.length > 1) setInterval(next, SECONDS * 1000);
+    data = list;
+    if (!list.length) { $('wall').innerHTML = '<div class="empty">榮譽榜等你來寫下第一張獎狀 ✨</div>'; return; }
+    layout();
   }
-  function next() {
-    if (paused) return;
-    const cur = items[idx]; idx = (idx + 1) % items.length; const nxt = items[idx];
-    nxt.style.transition = 'none'; nxt.className = 'item down'; void nxt.offsetWidth; nxt.style.transition = '';
-    cur.className = 'item up'; nxt.className = 'item in';
-  }
-  vp.addEventListener('mouseenter', () => paused = true);
-  vp.addEventListener('mouseleave', () => paused = false);
 
-  new ResizeObserver(() => requestAnimationFrame(draw)).observe($('bar'));
-  document.fonts && document.fonts.ready.then(() => requestAnimationFrame(draw));
+  let rz; new ResizeObserver(() => { clearTimeout(rz); rz = setTimeout(() => { drawFrame(); layout(); }, 120); }).observe($('board'));
+  document.fonts && document.fonts.ready.then(() => { drawFrame(); layout(); });
 
   // 預覽用：網址加 ?demo 會顯示範例資料
   if (location.search.indexOf('demo') >= 0) {
-    show([{ title: '全國科展 數學科 第一名', student: '928 王小明', medal: '金牌', tag: '科學', date: '2026-11-20' },
-          { title: '數學能力競賽 佳作', student: '927 陳小安', medal: '佳作', tag: '數學', date: '2026-11-02' }]);
+    show([
+      { title: '全國科展 數學科 第一名', student: '928 王小明', medal: '金牌', date: '2026-11-20' },
+      { title: '數學能力競賽 佳作', student: '927 陳小安', medal: '佳作', date: '2026-11-02' },
+      { title: '資訊學科能力競賽 銅牌', student: '928 林小華', medal: '銅牌', date: '2026-10-28' },
+      { title: '科學創意大賽 第二名', student: '927 張小涵、李小宇', medal: '銀牌', date: '2026-10-15' },
+      { title: '英語朗讀比賽 第一名', student: '928 黃小晴', medal: '金牌', date: '2026-10-08' },
+      { title: '桃園市獨立研究 優等', student: '927 吳小廷', medal: '其他', date: '2026-09-30' },
+      { title: '全國中學數學競試 金牌', student: '928 鄭小翔', medal: '金牌', date: '2026-09-20' }
+    ]);
   } else {
     fetch(API)
       .then(r => r.json())
       .then(d => { if (d.ok) show(d.honors); else throw new Error(d.error); })
-      .catch(err => { vp.innerHTML = ''; vp.appendChild(el('div', 'item in', '⚠️ 榮譽榜載入失敗，請稍後再試')); console.error(err); });
+      .catch(err => { $('wall').innerHTML = '<div class="empty">⚠️ 榮譽榜載入失敗，請稍後再試</div>'; console.error(err); });
   }
+  drawFrame();
 </script>
 </body>
 </html>
